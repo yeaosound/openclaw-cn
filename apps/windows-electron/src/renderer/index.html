@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self' ws://127.0.0.1:* http://127.0.0.1:*"
+    />
+    <title>OpenClaw Windows Electron</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0f14;
+        --surface: #131b23;
+        --surface-border: #1d2b39;
+        --text: #eef5ff;
+        --muted: #9ab1c6;
+        --accent: #44c2ff;
+        --danger: #ff6b6b;
+        --ok: #3fd380;
+        --warn: #ffd166;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Segoe UI", "Inter", sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(1300px 500px at -10% -20%, #123955 0%, transparent 60%),
+          radial-gradient(900px 600px at 120% 120%, #2a4031 0%, transparent 60%),
+          var(--bg);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 16px;
+        padding: 20px;
+      }
+
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--surface-border);
+        border-radius: 14px;
+        padding: 16px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.25);
+      }
+
+      .card-logs {
+        grid-column: 1 / -1;
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 10px;
+      }
+
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .btn {
+        border: 1px solid #2c3d4f;
+        background: #152130;
+        color: var(--text);
+        border-radius: 10px;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+
+      .btn:hover {
+        border-color: #3e5b73;
+      }
+
+      .btn-primary {
+        border-color: #2269a0;
+        background: #174a73;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        font-weight: 600;
+        text-transform: uppercase;
+        font-size: 12px;
+      }
+
+      .status-pill--running {
+        color: #c8f5dd;
+        border-color: #2f8f5f;
+        background: #1f4f37;
+      }
+
+      .status-pill--starting {
+        color: #fff2cf;
+        border-color: #9c7a1b;
+        background: #5f4a14;
+      }
+
+      .status-pill--stopped {
+        color: #ebedf2;
+        border-color: #6d7f8f;
+        background: #33424f;
+      }
+
+      .status-pill--error {
+        color: #ffd9d9;
+        border-color: #ae4f4f;
+        background: #692f2f;
+      }
+
+      .mono {
+        font-family: "Cascadia Code", "Consolas", monospace;
+      }
+
+      .logs {
+        max-height: 280px;
+        overflow: auto;
+        margin: 0;
+        white-space: pre-wrap;
+        background: #0d141c;
+        border: 1px solid #2a3a49;
+        border-radius: 10px;
+        padding: 12px;
+        line-height: 1.45;
+      }
+
+      .error-banner {
+        grid-column: 1 / -1;
+        border: 1px solid #a84f4f;
+        border-radius: 10px;
+        background: #4f1f1f;
+        color: #ffd9d9;
+        padding: 10px 12px;
+      }
+
+      .hidden {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>

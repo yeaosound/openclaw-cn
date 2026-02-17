@@ -43,12 +43,24 @@ export async function buildGatewayInstallPlan(params: {
       env: params.env,
       runtime: params.runtime,
     }));
-  const { programArguments, workingDirectory } = await resolveGatewayProgramArguments({
-    port: params.port,
-    dev: devMode,
-    runtime: params.runtime,
-    nodePath,
-  });
+  const { programArguments: baseProgramArguments, workingDirectory } =
+    await resolveGatewayProgramArguments({
+      port: params.port,
+      dev: devMode,
+      runtime: params.runtime,
+      nodePath,
+    });
+  const programArguments = [...baseProgramArguments];
+  const mcpConfigPath = params.env.OPENCLAW_GATEWAY_MCP_CONFIG?.trim();
+  const strictMcpConfig = params.env.OPENCLAW_GATEWAY_STRICT_MCP_CONFIG !== "0";
+  if (mcpConfigPath) {
+    if (strictMcpConfig && !programArguments.includes("--strict-mcp-config")) {
+      programArguments.push("--strict-mcp-config");
+    }
+    if (!programArguments.includes("--mcp-config")) {
+      programArguments.push("--mcp-config", mcpConfigPath);
+    }
+  }
   if (params.runtime === "node") {
     const systemNode = await resolveSystemNodeInfo({ env: params.env });
     const warning = renderSystemNodeWarning(systemNode, programArguments[0]);

@@ -1,0 +1,55 @@
+export const IPC_SCHEMA_VERSION = 1;
+
+export type IpcRequestBase = {
+  requestId: string;
+  schemaVersion: number;
+};
+
+export type GatewayLogsTailRequest = IpcRequestBase & {
+  lines?: number;
+};
+
+export const IPC_CHANNELS = {
+  gatewayStart: "gateway:start",
+  gatewayStop: "gateway:stop",
+  gatewayRestart: "gateway:restart",
+  gatewayStatusGet: "gateway:status:get",
+  gatewayLogsTail: "gateway:logs:tail",
+  serviceScheduledTaskGet: "service:scheduled-task:get",
+  serviceScheduledTaskInstall: "service:scheduled-task:install",
+  serviceScheduledTaskRestart: "service:scheduled-task:restart",
+} as const;
+
+export type IpcChannelName = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
+
+export type DesktopError = {
+  code: string;
+  message: string;
+  hint?: string;
+  retriable: boolean;
+};
+
+export type IpcEnvelope<T> = {
+  ok: true;
+  data: T;
+} | {
+  ok: false;
+  error: DesktopError;
+};
+
+export type GatewaySupervisorStatus = {
+  state: "stopped" | "starting" | "running" | "error";
+  port: number;
+  pid?: number;
+  startedAt?: string;
+  lastExitCode?: number;
+  lastError?: string;
+};
+
+export type ScheduledTaskStatus = {
+  status: string;
+  detail?: string;
+  state?: string;
+  lastRunTime?: string;
+  lastRunResult?: string;
+};

@@ -1,0 +1,8 @@
+appId: ai.openclaw.windows
+productName: OpenClaw Windows
+files:
+  - dist/**
+  - package.json
+win:
+  target:
+    - nsis
