@@ -14,7 +14,28 @@ tooling far more compatible (Node/Bun/pnpm, Linux binaries, skills). Native
 Windows might be trickier. WSL2 gives you the full Linux experience — one command
 to install: `wsl --install`.
 
-Native Windows companion apps are planned.
+Native Windows companion app support is now available as an experimental source-first flow (`apps/windows-electron`).
+
+## Experimental: Windows companion app (source-first)
+
+If you are validating the Windows Electron migration, you can run the companion app directly from the repository on a Windows host:
+
+```powershell
+corepack pnpm windows:electron:dev
+```
+
+For package validation builds:
+
+```powershell
+corepack pnpm windows:electron:package:dir
+corepack pnpm windows:electron:package:nsis
+```
+
+Notes:
+
+- This path is currently intended for migration validation and Beta-ring testing.
+- The app uses Scheduled Task ownership and can open the built-in Control UI in onboarding/full modes.
+- WSL2 remains the default recommendation for general production installs until Stable gate is signed off.
 
 ## Install (WSL2)
 

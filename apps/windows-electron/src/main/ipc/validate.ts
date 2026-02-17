@@ -1,5 +1,6 @@
 import {
   IPC_SCHEMA_VERSION,
+  type DesktopNavigateRequest,
   type GatewayLogsTailRequest,
   type IpcRequestBase,
   type McpApplyRequest,
@@ -117,4 +118,17 @@ export function parseUpdateApplyRequest(payload: unknown): UpdateApplyRequest {
     };
   }
   throw new Error("updates:apply channel must be stable|beta|dev");
+}
+
+export function parseDesktopNavigateRequest(payload: unknown): DesktopNavigateRequest {
+  const body = toObject(payload);
+  const base = parseRequestBase(body);
+  const mode = body.mode;
+  if (mode === "bootstrap" || mode === "onboarding" || mode === "full") {
+    return {
+      ...base,
+      mode,
+    };
+  }
+  throw new Error("app:navigate mode must be bootstrap|onboarding|full");
 }

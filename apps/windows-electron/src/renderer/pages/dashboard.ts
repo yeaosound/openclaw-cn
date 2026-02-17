@@ -1,169 +1,317 @@
-import { statusClass } from "../components/status-pill.js";
-import { GatewayStore } from "../state/gateway-store.js";
+type BootstrapStatus = {
+  gateway: {
+    ok: boolean;
+    state: string;
+    port: number;
+    error?: string;
+  };
+  task: {
+    ok: boolean;
+    status: string;
+    detail?: string;
+  };
+};
+
+type Guidance = {
+  level: "ok" | "warn" | "error";
+  title: string;
+  action: string;
+};
+
+function friendlyTaskStatus(status: string): string {
+  if (!status) {
+    return "unknown";
+  }
+  return status;
+}
+
+function resolveGuidance(status: BootstrapStatus): Guidance {
+  if (status.gateway.ok && status.gateway.state === "running") {
+    return {
+      level: "ok",
+      title: "Gateway is healthy",
+      action: "Open Full UI for normal operation.",
+    };
+  }
+
+  const taskDetail = (status.task.detail ?? "").toLowerCase();
+  const gatewayError = (status.gateway.error ?? "").toLowerCase();
+
+  if (!status.task.ok || status.task.status === "unknown") {
+    if (
+      taskDetail.includes("not found") ||
+      taskDetail.includes("cannot find") ||
+      taskDetail.includes("specified file")
+    ) {
+      return {
+        level: "warn",
+        title: "Owner service is not registered yet",
+        action: "Run Install + Start, then open onboarding UI.",
+      };
+    }
+    return {
+      level: "warn",
+      title: "Owner status is unavailable",
+      action: "Retry refresh, then run Install + Start if this remains.",
+    };
+  }
+
+  if (gatewayError.includes("owner conflict") || gatewayError.includes("port") || gatewayError.includes("busy")) {
+    return {
+      level: "error",
+      title: "Gateway ownership conflict detected",
+      action: "Free port 18789 or stop the conflicting process, then restart gateway.",
+    };
+  }
+
+  return {
+    level: "warn",
+    title: "Gateway is not running",
+    action: "Open onboarding UI and complete bootstrap steps.",
+  };
+}
 
 export function mountDashboard(root: HTMLElement) {
-  const store = new GatewayStore();
-
   root.innerHTML = `
-    <main class="layout">
-      <section class="card">
-        <h1>OpenClaw Windows Gateway</h1>
-        <p class="muted">M2 baseline: owner-safe lifecycle + MCP strict config + update rollback controls.</p>
-        <div class="row">
-          <span id="gateway-state" class="status-pill">stopped</span>
-          <span id="gateway-port" class="mono">port 18789</span>
+    <main class="host-layout">
+      <header class="host-header">
+        <div>
+          <h1>OpenClaw Desktop Bootstrap</h1>
+          <p class="muted">No iframe mode: bootstrap here, then navigate this window directly to the built-in Control UI.</p>
         </div>
         <div class="actions">
-          <button id="gateway-start" class="btn btn-primary">Start</button>
-          <button id="gateway-stop" class="btn">Stop</button>
-          <button id="gateway-restart" class="btn">Restart</button>
+          <button id="onboard-run" class="btn btn-primary">Install + Start</button>
+          <button id="gateway-restart" class="btn">Restart Gateway</button>
+          <button id="open-onboarding" class="btn">Open Onboarding UI</button>
+          <button id="open-full" class="btn">Open Full UI</button>
+          <button id="refresh-status" class="btn">Refresh Status</button>
+          <button id="toggle-autoroute" class="btn">Auto-route: on</button>
         </div>
+      </header>
+
+      <section class="status-bar">
+        <span id="gateway-status" class="mono">Gateway: checking...</span>
+        <span id="task-status" class="mono">Owner: checking...</span>
       </section>
 
-      <section class="card">
-        <h2>Scheduled Task</h2>
-        <div id="scheduled-task-state" class="mono">unknown</div>
-        <div class="actions">
-          <button id="task-install" class="btn">Install / Repair</button>
-          <button id="task-restart" class="btn">Restart task</button>
-        </div>
-      </section>
-
-      <section class="card">
-        <h2>MCP Strict Config</h2>
-        <p class="muted">Draft JSON is validated before apply. Strict mode is enforced by daemon install args.</p>
-        <textarea id="mcp-draft" class="draft"></textarea>
-        <div class="actions">
-          <button id="mcp-validate" class="btn">Validate draft</button>
-          <button id="mcp-apply" class="btn btn-primary">Apply draft</button>
-        </div>
-        <pre id="mcp-result" class="logs">No validation yet.</pre>
-      </section>
-
-      <section class="card">
-        <h2>Update + Rollback</h2>
-        <div id="update-summary" class="mono">Not checked</div>
-        <div class="actions">
-          <button id="update-refresh" class="btn">Check update</button>
-          <button id="update-apply" class="btn btn-primary">Apply update</button>
-          <button id="update-beta" class="btn">Apply beta</button>
-          <button id="update-rollback" class="btn">Rollback</button>
-        </div>
-        <pre id="update-result" class="logs">No update run yet.</pre>
-      </section>
-
-      <section class="card card-logs">
-        <h2>Recent Gateway Logs</h2>
-        <pre id="gateway-logs" class="logs">Loading logs…</pre>
+      <section class="note-card">
+        <h2>Recommended next step</h2>
+        <p id="guidance-title" class="guidance guidance-warn">Inspecting runtime...</p>
+        <p id="guidance-action" class="muted">Run Refresh Status if this takes too long.</p>
+        <ol>
+          <li>Use <strong>Install + Start</strong> to bootstrap Scheduled Task + gateway.</li>
+          <li>Open the built-in Control UI with either onboarding mode or full mode.</li>
+          <li>Tray menu can reopen bootstrap/onboarding/full surfaces at any time.</li>
+        </ol>
       </section>
 
       <section id="error-banner" class="error-banner hidden"></section>
     </main>
   `;
 
-  const gatewayState = root.querySelector<HTMLSpanElement>("#gateway-state");
-  const gatewayPort = root.querySelector<HTMLSpanElement>("#gateway-port");
-  const scheduledTaskState = root.querySelector<HTMLDivElement>("#scheduled-task-state");
-  const logs = root.querySelector<HTMLElement>("#gateway-logs");
+  const onboardRun = root.querySelector<HTMLButtonElement>("#onboard-run");
+  const restartGateway = root.querySelector<HTMLButtonElement>("#gateway-restart");
+  const openOnboarding = root.querySelector<HTMLButtonElement>("#open-onboarding");
+  const openFull = root.querySelector<HTMLButtonElement>("#open-full");
+  const refreshStatus = root.querySelector<HTMLButtonElement>("#refresh-status");
+  const toggleAutoRoute = root.querySelector<HTMLButtonElement>("#toggle-autoroute");
+  const gatewayStatus = root.querySelector<HTMLElement>("#gateway-status");
+  const taskStatus = root.querySelector<HTMLElement>("#task-status");
+  const guidanceTitle = root.querySelector<HTMLElement>("#guidance-title");
+  const guidanceAction = root.querySelector<HTMLElement>("#guidance-action");
   const errorBanner = root.querySelector<HTMLElement>("#error-banner");
-  const mcpDraft = root.querySelector<HTMLTextAreaElement>("#mcp-draft");
-  const mcpResult = root.querySelector<HTMLElement>("#mcp-result");
-  const updateSummary = root.querySelector<HTMLElement>("#update-summary");
-  const updateResult = root.querySelector<HTMLElement>("#update-result");
 
-  root.querySelector<HTMLButtonElement>("#gateway-start")?.addEventListener("click", async () => {
-    await store.startGateway();
-  });
-  root.querySelector<HTMLButtonElement>("#gateway-stop")?.addEventListener("click", async () => {
-    await store.stopGateway();
-  });
-  root.querySelector<HTMLButtonElement>("#gateway-restart")?.addEventListener("click", async () => {
-    await store.restartGateway();
-  });
-  root.querySelector<HTMLButtonElement>("#task-install")?.addEventListener("click", async () => {
-    await store.installScheduledTask();
-    await store.refreshAll();
-  });
-  root.querySelector<HTMLButtonElement>("#task-restart")?.addEventListener("click", async () => {
-    await store.restartScheduledTask();
-    await store.refreshAll();
-  });
+  let autoRouted = false;
+  let autoRouteEnabled = window.localStorage.getItem("openclaw.desktop.bootstrapAutoRoute") !== "off";
 
-  mcpDraft?.addEventListener("input", () => {
-    store.setMcpDraft(mcpDraft.value);
-  });
-  root.querySelector<HTMLButtonElement>("#mcp-validate")?.addEventListener("click", async () => {
-    await store.validateMcp();
-  });
-  root.querySelector<HTMLButtonElement>("#mcp-apply")?.addEventListener("click", async () => {
-    await store.applyMcp();
-  });
+  const syncAutoRouteButton = () => {
+    if (!toggleAutoRoute) {
+      return;
+    }
+    toggleAutoRoute.textContent = `Auto-route: ${autoRouteEnabled ? "on" : "off"}`;
+  };
 
-  root.querySelector<HTMLButtonElement>("#update-refresh")?.addEventListener("click", async () => {
-    await store.refreshAll();
-  });
-  root.querySelector<HTMLButtonElement>("#update-apply")?.addEventListener("click", async () => {
-    await store.applyUpdate();
-  });
-  root.querySelector<HTMLButtonElement>("#update-beta")?.addEventListener("click", async () => {
-    await store.applyUpdate("beta");
-  });
-  root.querySelector<HTMLButtonElement>("#update-rollback")?.addEventListener("click", async () => {
-    await store.rollbackUpdate();
-  });
+  syncAutoRouteButton();
 
-  store.subscribe((state) => {
-    if (gatewayState) {
-      gatewayState.className = statusClass(state.gateway.state);
-      gatewayState.textContent = state.gateway.state;
+  const setError = (message?: string) => {
+    if (!errorBanner) {
+      return;
+    }
+    if (!message) {
+      errorBanner.classList.add("hidden");
+      errorBanner.textContent = "";
+      return;
+    }
+    errorBanner.classList.remove("hidden");
+    errorBanner.textContent = message;
+  };
+
+  const setBusy = (
+    button: HTMLButtonElement | null,
+    busy: boolean,
+    busyLabel: string,
+    idleLabel: string,
+  ) => {
+    if (!button) {
+      return;
+    }
+    button.disabled = busy;
+    button.textContent = busy ? busyLabel : idleLabel;
+  };
+
+  const navigateDesktop = async (mode: "bootstrap" | "onboarding" | "full") => {
+    const result = await window.openClawDesktop.app.navigate(mode);
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
+  };
+
+  const refresh = async () => {
+    const [gateway, task] = await Promise.all([
+      window.openClawDesktop.gateway.getStatus(),
+      window.openClawDesktop.scheduledTask.getStatus(),
+    ]);
+
+    const current: BootstrapStatus = {
+      gateway: gateway.ok
+        ? {
+            ok: true,
+            state: gateway.data.state,
+            port: gateway.data.port,
+          }
+        : {
+            ok: false,
+            state: "error",
+            port: 18789,
+            error: gateway.error.message,
+          },
+      task: task.ok
+        ? {
+            ok: true,
+            status: task.data.status,
+            detail: task.data.detail,
+          }
+        : {
+            ok: false,
+            status: "unknown",
+            detail: task.error.message,
+          },
+    };
+
+    if (gatewayStatus) {
+      gatewayStatus.textContent = current.gateway.ok
+        ? `Gateway: ${current.gateway.state} on port ${current.gateway.port}`
+        : "Gateway: unavailable";
     }
 
-    if (gatewayPort) {
-      gatewayPort.textContent = `port ${state.gateway.port}`;
+    if (taskStatus) {
+      const detail = current.task.detail ? ` (${current.task.detail})` : "";
+      taskStatus.textContent = `Owner: ${friendlyTaskStatus(current.task.status)}${detail}`;
     }
 
-    if (scheduledTaskState) {
-      const runtime = [
-        state.scheduledTask.status,
-        state.scheduledTask.state,
-        state.scheduledTask.lastRunResult,
-      ]
-        .filter(Boolean)
-        .join(" · ");
-      scheduledTaskState.textContent = runtime || "unknown";
+    const guidance = resolveGuidance(current);
+    if (guidanceTitle) {
+      guidanceTitle.className = `guidance guidance-${guidance.level}`;
+      guidanceTitle.textContent = guidance.title;
+    }
+    if (guidanceAction) {
+      guidanceAction.textContent = guidance.action;
     }
 
-    if (logs) {
-      logs.textContent = state.logs.length > 0 ? state.logs.join("\n") : "No logs yet.";
+    if (!gateway.ok) {
+      setError(gateway.error.message);
+    } else if (!task.ok) {
+      setError(task.error.message);
     }
 
-    if (mcpDraft && mcpDraft.value !== state.mcpDraft) {
-      mcpDraft.value = state.mcpDraft;
+    if (!autoRouteEnabled || autoRouted) {
+      return;
     }
 
-    if (mcpResult && state.mcpValidation) {
-      mcpResult.textContent = `${state.mcpValidation.ok ? "OK" : "FAILED"}\n${state.mcpValidation.details}`;
-    }
-
-    if (updateSummary) {
-      const badge = state.update.available ? "update available" : "up to date";
-      updateSummary.textContent = `${state.update.channelLabel} · ${badge} · ${state.update.details}`;
-    }
-
-    if (updateResult && state.updateApply) {
-      updateResult.textContent = JSON.stringify(state.updateApply, null, 2);
-    }
-
-    if (errorBanner) {
-      if (state.lastError) {
-        errorBanner.classList.remove("hidden");
-        errorBanner.textContent = state.lastError;
-      } else {
-        errorBanner.classList.add("hidden");
-        errorBanner.textContent = "";
+    try {
+      if (current.gateway.ok && current.gateway.state === "running") {
+        autoRouted = true;
+        await navigateDesktop("full");
+        return;
       }
+
+      if (current.task.ok && current.task.status !== "unknown") {
+        autoRouted = true;
+        await navigateDesktop("onboarding");
+      }
+    } catch (error) {
+      autoRouted = false;
+      setError(String(error));
+    }
+  };
+
+  onboardRun?.addEventListener("click", async () => {
+    setBusy(onboardRun, true, "Running...", "Install + Start");
+    setError(undefined);
+    try {
+      const installResult = await window.openClawDesktop.scheduledTask.install();
+      if (!installResult.ok) {
+        throw new Error(installResult.error.message);
+      }
+
+      const startResult = await window.openClawDesktop.gateway.start();
+      if (!startResult.ok) {
+        throw new Error(startResult.error.message);
+      }
+
+      await refresh();
+      await navigateDesktop("full");
+    } catch (error) {
+      setError(String(error));
+    } finally {
+      setBusy(onboardRun, false, "Running...", "Install + Start");
     }
   });
 
-  void store.refreshAll();
+  restartGateway?.addEventListener("click", async () => {
+    setBusy(restartGateway, true, "Restarting...", "Restart Gateway");
+    setError(undefined);
+    try {
+      const result = await window.openClawDesktop.gateway.restart();
+      if (!result.ok) {
+        throw new Error(result.error.message);
+      }
+      await refresh();
+    } catch (error) {
+      setError(String(error));
+    } finally {
+      setBusy(restartGateway, false, "Restarting...", "Restart Gateway");
+    }
+  });
+
+  openOnboarding?.addEventListener("click", async () => {
+    setError(undefined);
+    try {
+      await navigateDesktop("onboarding");
+    } catch (error) {
+      setError(String(error));
+    }
+  });
+
+  openFull?.addEventListener("click", async () => {
+    setError(undefined);
+    try {
+      await navigateDesktop("full");
+    } catch (error) {
+      setError(String(error));
+    }
+  });
+
+  refreshStatus?.addEventListener("click", async () => {
+    setError(undefined);
+    await refresh();
+  });
+
+  toggleAutoRoute?.addEventListener("click", () => {
+    autoRouteEnabled = !autoRouteEnabled;
+    window.localStorage.setItem("openclaw.desktop.bootstrapAutoRoute", autoRouteEnabled ? "on" : "off");
+    syncAutoRouteButton();
+  });
+
+  void refresh();
 }

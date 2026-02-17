@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { IPC_SCHEMA_VERSION } from "./channels.js";
 import {
+  parseDesktopNavigateRequest,
   parseGatewayLogsTailRequest,
   parseMcpApplyRequest,
   parseRequestBase,
@@ -72,5 +73,24 @@ test("parseUpdateApplyRequest validates channel enum", () => {
         channel: "nightly",
       }),
     /stable\|beta\|dev/,
+  );
+});
+
+test("parseDesktopNavigateRequest validates desktop mode", () => {
+  const payload = parseDesktopNavigateRequest({
+    requestId: "req-12345678",
+    schemaVersion: IPC_SCHEMA_VERSION,
+    mode: "full",
+  });
+
+  assert.equal(payload.mode, "full");
+  assert.throws(
+    () =>
+      parseDesktopNavigateRequest({
+        requestId: "req-12345678",
+        schemaVersion: IPC_SCHEMA_VERSION,
+        mode: "invalid",
+      }),
+    /bootstrap\|onboarding\|full/,
   );
 });

@@ -81,6 +81,35 @@ Notes:
 - If your Gateway runs as a service, `openclaw gateway restart` is preferred over killing PIDs.
 - If you’re pinned to a specific version, see “Rollback / pinning” below.
 
+## Update (Windows companion app experimental flow)
+
+If you are running the Windows Electron companion app from source (`apps/windows-electron`), update from repo root and then rebuild/package the app:
+
+```powershell
+git pull --rebase
+corepack pnpm install
+corepack pnpm windows:electron:build
+corepack pnpm windows:electron:smoke
+```
+
+For package validation after update:
+
+```powershell
+corepack pnpm windows:electron:package:dir
+```
+
+If packaging fails due to Electron binary download connectivity, set cache paths and (optionally) a mirror before retrying:
+
+```powershell
+$env:ELECTRON_CACHE = "$env:USERPROFILE\.cache\electron"
+$env:ELECTRON_BUILDER_CACHE = "$env:USERPROFILE\.cache\electron-builder"
+# Optional mirror if your network requires one
+# $env:ELECTRON_MIRROR = "https://npmmirror.com/mirrors/electron/"
+corepack pnpm windows:electron:package:dir
+```
+
+The Windows packaging script now retries packaging and reuses the cache directories above.
+
 ## Update (`openclaw update`)
 
 For **source installs** (git checkout), prefer:

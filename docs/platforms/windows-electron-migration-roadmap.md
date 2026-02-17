@@ -8,9 +8,47 @@ title: "Windows Electron Migration Roadmap"
 
 # Windows Electron 迁移架构与路线图（仅规划）
 
-> 状态：规划文档，不包含任何实现。
+> 状态：规划 + 落地跟踪（已进入实现阶段）。
 > 
 > 范围：面向 Windows 设备执行，避免跨平台编译假设。
+
+## 0. 当前进展快照（2026-02-17）
+
+### 0.1 已完成（与路线图对齐）
+
+- [x] `apps/windows-electron/` 工程骨架与 workspace 接入。
+- [x] Main/Preload/IPC v1 主链路与 schema 校验落地。
+- [x] Gateway 启停与状态探测，Scheduled Task 状态编排落地。
+- [x] MCP strict 配置校验与应用链路可用。
+- [x] 更新应用 + 回滚入口（last-known-good）可用。
+- [x] Windows Electron owner stability soak 可通过。
+- [x] Electron 托盘常驻模型（关闭隐藏、托盘恢复、显式退出）可用。
+- [x] 非 iframe 模式：Bootstrap 页 + 主窗口直接导航 Control UI（bootstrap/onboarding/full）。
+
+### 0.2 待完成（发布前关键）
+
+- [ ] 完成 Beta Ring 发布与反馈回收（第 23.4 节任务 29）。
+- [ ] 完成 Stable Gate 决议与签署记录（第 23.4 节任务 30）。
+- [ ] 建立并固化每周 upstream 吸收流水线（第 23.4 节任务 28）。
+  - 已完成：`apps/windows-electron/scripts/upstream-sync-win.ps1` 会产出可追溯执行报告到 `~/.openclaw/runtime/windows-electron/upstream-sync/sync-*.json`。
+- [x] 补齐 Windows 平台联动文档（`docs/platforms/windows.md`、`docs/platforms/index.md`、`docs/install/updating.md`）。
+
+### 0.3 本地打包/发布命令（当前标准）
+
+```powershell
+# 在仓库根目录执行
+corepack pnpm windows:electron:package:dir
+corepack pnpm windows:electron:package:nsis
+corepack pnpm windows:electron:package:portable
+corepack pnpm windows:electron:release:prep
+# 在本地脏工作区可先跑 verify-only 周期验证
+corepack pnpm windows:electron:sync:verify
+
+# tag 发布（需要发布渠道配置与凭据）
+corepack pnpm --dir apps/windows-electron run release:win:tag
+```
+
+> 注：本地打包默认 `--publish never`；若遇到 Electron 二进制下载超时，需先解决网络或镜像源可达性。
 
 ## 1. 目标与约束
 

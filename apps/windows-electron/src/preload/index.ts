@@ -2,6 +2,7 @@ import { contextBridge, ipcRenderer } from "electron";
 import {
   IPC_CHANNELS,
   IPC_SCHEMA_VERSION,
+  type DesktopViewMode,
   type GatewaySupervisorStatus,
   type IpcEnvelope,
   type McpConfigPayload,
@@ -13,6 +14,15 @@ import {
 import { assertEnvelope, createRequestBase, sanitizeLogTailArgs } from "./schema.js";
 
 const api = {
+  app: {
+    navigate: async (mode: DesktopViewMode): Promise<IpcEnvelope<{ mode: DesktopViewMode }>> =>
+      assertEnvelope<{ mode: DesktopViewMode }>(
+        await ipcRenderer.invoke(IPC_CHANNELS.appNavigate, {
+          ...createRequestBase(IPC_SCHEMA_VERSION),
+          mode,
+        }),
+      ),
+  },
   gateway: {
     start: async (): Promise<IpcEnvelope<GatewaySupervisorStatus>> =>
       assertEnvelope<GatewaySupervisorStatus>(

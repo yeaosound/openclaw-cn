@@ -10,9 +10,15 @@
     "check": "tsc -p tsconfig.json --noEmit",
     "dev": "pnpm build && electron .",
     "owner:stability": "powershell -ExecutionPolicy Bypass -File ./scripts/owner-stability.ps1",
+    "package:win:dir": "powershell -ExecutionPolicy Bypass -File ./scripts/build-win.ps1 -Mode dir -Retry 3",
+    "package:win:nsis": "powershell -ExecutionPolicy Bypass -File ./scripts/build-win.ps1 -Mode nsis -Retry 3",
+    "package:win:portable": "powershell -ExecutionPolicy Bypass -File ./scripts/build-win.ps1 -Mode portable -Retry 3",
+    "release:win:prep": "pnpm run package:win:nsis",
+    "release:win:tag": "pnpm build && pnpm dlx electron-builder --config electron-builder.yml --win nsis --publish onTag",
     "smoke:owner": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-owner.ps1",
     "start": "electron .",
     "upstream:sync": "powershell -ExecutionPolicy Bypass -File ./scripts/upstream-sync-win.ps1",
+    "upstream:verify": "powershell -ExecutionPolicy Bypass -File ./scripts/upstream-sync-win.ps1 -SkipGitOps",
     "test": "node --test \"dist/main/ipc/validate.test.js\" \"dist/main/service/daemon-status.test.js\" \"dist/main/mcp/config-manager.test.js\""
   },
   "devDependencies": {

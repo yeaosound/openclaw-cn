@@ -2,6 +2,7 @@ import { ipcMain } from "electron";
 import {
   IPC_CHANNELS,
   type DesktopError,
+  type DesktopViewMode,
   type GatewaySupervisorStatus,
   type IpcEnvelope,
   type McpValidationResult,
@@ -10,6 +11,7 @@ import {
   type UpdateCheckStatus,
 } from "./channels.js";
 import {
+  parseDesktopNavigateRequest,
   parseGatewayLogsTailRequest,
   parseMcpApplyRequest,
   parseMcpValidateRequest,
@@ -17,6 +19,7 @@ import {
   parseUpdateApplyRequest,
 } from "./validate.js";
 import type { GatewaySupervisor } from "../gateway/supervisor.js";
+import type { WindowManager } from "../window-manager.js";
 import { readGatewayLogTail } from "../gateway/log-tail.js";
 import { applyMcpConfigDraft, validateMcpConfigDraft } from "../service/mcp-config.js";
 import {
@@ -29,6 +32,7 @@ import { applyUpdates, checkUpdates, rollbackLastKnownGood } from "../updates/up
 type RegisterIpcArgs = {
   appRoot: string;
   supervisor: GatewaySupervisor;
+  windowManager: WindowManager;
   onGatewayTransition: (status: GatewaySupervisorStatus) => void;
 };
 
@@ -152,6 +156,18 @@ export function registerIpcHandlers(args: RegisterIpcArgs) {
     await wrap<UpdateApplyResult>(async () => {
       parseRequestBase(payload);
       return await rollbackLastKnownGood(args.appRoot);
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.appNavigate, async (_event, payload: unknown) =>
+    await wrap<{ mode: DesktopViewMode }>(async () => {
+      const request = parseDesktopNavigateRequest(payload);
+      if (request.mode === "bootstrap") {
+        await args.windowManager.openBootstrapSurface();
+      } else {
+        await args.windowManager.openControlUi(request.mode);
+      }
+      return { mode: request.mode };
     }),
   );
 }

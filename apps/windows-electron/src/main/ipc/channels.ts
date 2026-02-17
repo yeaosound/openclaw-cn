@@ -32,6 +32,12 @@ export type UpdateApplyRequest = IpcRequestBase & {
   channel?: "stable" | "beta" | "dev";
 };
 
+export type DesktopViewMode = "bootstrap" | "onboarding" | "full";
+
+export type DesktopNavigateRequest = IpcRequestBase & {
+  mode: DesktopViewMode;
+};
+
 export const IPC_CHANNELS = {
   gatewayStart: "gateway:start",
   gatewayStop: "gateway:stop",
@@ -46,6 +52,7 @@ export const IPC_CHANNELS = {
   updatesCheck: "updates:check",
   updatesApply: "updates:apply",
   updatesRollback: "updates:rollback",
+  appNavigate: "app:navigate",
 } as const;
 
 export type IpcChannelName = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
