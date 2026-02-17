@@ -4,7 +4,11 @@ import {
   IPC_SCHEMA_VERSION,
   type GatewaySupervisorStatus,
   type IpcEnvelope,
+  type McpConfigPayload,
+  type McpValidationResult,
   type ScheduledTaskStatus,
+  type UpdateApplyResult,
+  type UpdateCheckStatus,
 } from "../main/ipc/channels.js";
 import { assertEnvelope, createRequestBase, sanitizeLogTailArgs } from "./schema.js";
 
@@ -57,7 +61,42 @@ const api = {
         ),
       ),
   },
-
+  mcp: {
+    validate: async (config: McpConfigPayload): Promise<IpcEnvelope<McpValidationResult>> =>
+      assertEnvelope<McpValidationResult>(
+        await ipcRenderer.invoke(IPC_CHANNELS.mcpConfigValidate, {
+          ...createRequestBase(IPC_SCHEMA_VERSION),
+          config,
+        }),
+      ),
+    apply: async (config: McpConfigPayload): Promise<IpcEnvelope<McpValidationResult>> =>
+      assertEnvelope<McpValidationResult>(
+        await ipcRenderer.invoke(IPC_CHANNELS.mcpConfigApply, {
+          ...createRequestBase(IPC_SCHEMA_VERSION),
+          config,
+        }),
+      ),
+  },
+  updates: {
+    check: async (): Promise<IpcEnvelope<UpdateCheckStatus>> =>
+      assertEnvelope<UpdateCheckStatus>(
+        await ipcRenderer.invoke(IPC_CHANNELS.updatesCheck, createRequestBase(IPC_SCHEMA_VERSION)),
+      ),
+    apply: async (channel?: "stable" | "beta" | "dev"): Promise<IpcEnvelope<UpdateApplyResult>> =>
+      assertEnvelope<UpdateApplyResult>(
+        await ipcRenderer.invoke(IPC_CHANNELS.updatesApply, {
+          ...createRequestBase(IPC_SCHEMA_VERSION),
+          ...(channel ? { channel } : {}),
+        }),
+      ),
+    rollback: async (): Promise<IpcEnvelope<UpdateApplyResult>> =>
+      assertEnvelope<UpdateApplyResult>(
+        await ipcRenderer.invoke(
+          IPC_CHANNELS.updatesRollback,
+          createRequestBase(IPC_SCHEMA_VERSION),
+        ),
+      ),
+  },
 } as const;
 
 contextBridge.exposeInMainWorld("openClawDesktop", api);

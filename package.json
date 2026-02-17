@@ -114,6 +114,7 @@
     "mac:restart": "bash scripts/restart-mac.sh",
     "windows:electron:build": "pnpm --dir apps/windows-electron build",
     "windows:electron:dev": "pnpm --dir apps/windows-electron dev",
+    "windows:electron:owner": "pnpm --dir apps/windows-electron owner:stability",
     "windows:electron:smoke": "pnpm --dir apps/windows-electron smoke:owner",
     "windows:electron:start": "pnpm --dir apps/windows-electron start",
     "moltbot:rpc": "node scripts/run-node.mjs agent --mode rpc --json",

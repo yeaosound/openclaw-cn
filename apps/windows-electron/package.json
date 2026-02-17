@@ -9,9 +9,11 @@
     "build": "tsc -p tsconfig.json && node ./scripts/copy-renderer-assets.mjs",
     "check": "tsc -p tsconfig.json --noEmit",
     "dev": "pnpm build && electron .",
+    "owner:stability": "powershell -ExecutionPolicy Bypass -File ./scripts/owner-stability.ps1",
     "smoke:owner": "powershell -ExecutionPolicy Bypass -File ./scripts/smoke-owner.ps1",
     "start": "electron .",
-    "test": "node --test \"dist/main/ipc/validate.test.js\" \"dist/main/service/daemon-status.test.js\""
+    "upstream:sync": "powershell -ExecutionPolicy Bypass -File ./scripts/upstream-sync-win.ps1",
+    "test": "node --test \"dist/main/ipc/validate.test.js\" \"dist/main/service/daemon-status.test.js\" \"dist/main/mcp/config-manager.test.js\""
   },
   "devDependencies": {
     "@types/node": "^25.2.0",

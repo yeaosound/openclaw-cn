@@ -1,41 +1,47 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import type { McpConfigPayload, McpValidationResult } from "../ipc/channels.js";
+import {
+  applyMcpConfig,
+  resolveMcpRuntimeEnv,
+  validateMcpConfig,
+} from "../mcp/config-manager.js";
 
-type McpPayload = {
-  mcpServers: Record<string, unknown>;
+const EMPTY_CONFIG: McpConfigPayload = {
+  mcpServers: {},
 };
 
-function resolveMcpConfigPath(appRoot: string): string {
-  const home = process.env.USERPROFILE ?? process.env.HOME ?? appRoot;
-  return path.join(home, ".openclaw", "windows-electron", "mcp.config.json");
+export async function validateMcpConfigDraft(args: {
+  appRoot: string;
+  config: McpConfigPayload;
+}): Promise<McpValidationResult> {
+  return await validateMcpConfig(args);
 }
 
-function parseServersJson(raw: string): Record<string, unknown> {
-  const parsed = JSON.parse(raw) as unknown;
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-    throw new Error("MCP servers must be a JSON object");
+export async function applyMcpConfigDraft(args: {
+  appRoot: string;
+  config: McpConfigPayload;
+}): Promise<McpValidationResult> {
+  return await applyMcpConfig(args);
+}
+
+async function ensureActiveConfigFile(appRoot: string): Promise<void> {
+  const env = resolveMcpRuntimeEnv({ appRoot });
+  const activePath = env.OPENCLAW_GATEWAY_MCP_CONFIG;
+  try {
+    await fs.access(activePath);
+    return;
+  } catch (error) {
+    if (!(typeof error === "object" && error !== null && "code" in error && (error as { code?: unknown }).code === "ENOENT")) {
+      throw error;
+    }
   }
-  return parsed as Record<string, unknown>;
-}
 
-export async function ensureMcpConfig(appRoot: string): Promise<{ path: string; strict: boolean }> {
-  const configPath = resolveMcpConfigPath(appRoot);
-  const strict = process.env.OPENCLAW_WINDOWS_ELECTRON_MCP_STRICT !== "0";
-  const rawServers = process.env.OPENCLAW_WINDOWS_ELECTRON_MCP_SERVERS_JSON?.trim();
-
-  const payload: McpPayload = {
-    mcpServers: rawServers ? parseServersJson(rawServers) : {},
-  };
-
-  await fs.mkdir(path.dirname(configPath), { recursive: true });
-  await fs.writeFile(configPath, `${JSON.stringify(payload, null, 2)}\n`, "utf8");
-  return { path: configPath, strict };
+  await fs.mkdir(path.dirname(activePath), { recursive: true });
+  await fs.writeFile(activePath, `${JSON.stringify(EMPTY_CONFIG, null, 2)}\n`, "utf8");
 }
 
 export async function resolveMcpCliEnv(appRoot: string): Promise<Record<string, string>> {
-  const mcp = await ensureMcpConfig(appRoot);
-  return {
-    OPENCLAW_GATEWAY_MCP_CONFIG: mcp.path,
-    OPENCLAW_GATEWAY_STRICT_MCP_CONFIG: mcp.strict ? "1" : "0",
-  };
+  await ensureActiveConfigFile(appRoot);
+  return resolveMcpRuntimeEnv({ appRoot });
 }

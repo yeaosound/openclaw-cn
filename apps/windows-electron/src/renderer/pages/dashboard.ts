@@ -8,7 +8,7 @@ export function mountDashboard(root: HTMLElement) {
     <main class="layout">
       <section class="card">
         <h1>OpenClaw Windows Gateway</h1>
-        <p class="muted">M1 baseline shell: gateway lifecycle, scheduled task status, and logs.</p>
+        <p class="muted">M2 baseline: owner-safe lifecycle + MCP strict config + update rollback controls.</p>
         <div class="row">
           <span id="gateway-state" class="status-pill">stopped</span>
           <span id="gateway-port" class="mono">port 18789</span>
@@ -29,6 +29,29 @@ export function mountDashboard(root: HTMLElement) {
         </div>
       </section>
 
+      <section class="card">
+        <h2>MCP Strict Config</h2>
+        <p class="muted">Draft JSON is validated before apply. Strict mode is enforced by daemon install args.</p>
+        <textarea id="mcp-draft" class="draft"></textarea>
+        <div class="actions">
+          <button id="mcp-validate" class="btn">Validate draft</button>
+          <button id="mcp-apply" class="btn btn-primary">Apply draft</button>
+        </div>
+        <pre id="mcp-result" class="logs">No validation yet.</pre>
+      </section>
+
+      <section class="card">
+        <h2>Update + Rollback</h2>
+        <div id="update-summary" class="mono">Not checked</div>
+        <div class="actions">
+          <button id="update-refresh" class="btn">Check update</button>
+          <button id="update-apply" class="btn btn-primary">Apply update</button>
+          <button id="update-beta" class="btn">Apply beta</button>
+          <button id="update-rollback" class="btn">Rollback</button>
+        </div>
+        <pre id="update-result" class="logs">No update run yet.</pre>
+      </section>
+
       <section class="card card-logs">
         <h2>Recent Gateway Logs</h2>
         <pre id="gateway-logs" class="logs">Loading logs…</pre>
@@ -43,6 +66,10 @@ export function mountDashboard(root: HTMLElement) {
   const scheduledTaskState = root.querySelector<HTMLDivElement>("#scheduled-task-state");
   const logs = root.querySelector<HTMLElement>("#gateway-logs");
   const errorBanner = root.querySelector<HTMLElement>("#error-banner");
+  const mcpDraft = root.querySelector<HTMLTextAreaElement>("#mcp-draft");
+  const mcpResult = root.querySelector<HTMLElement>("#mcp-result");
+  const updateSummary = root.querySelector<HTMLElement>("#update-summary");
+  const updateResult = root.querySelector<HTMLElement>("#update-result");
 
   root.querySelector<HTMLButtonElement>("#gateway-start")?.addEventListener("click", async () => {
     await store.startGateway();
@@ -60,6 +87,29 @@ export function mountDashboard(root: HTMLElement) {
   root.querySelector<HTMLButtonElement>("#task-restart")?.addEventListener("click", async () => {
     await store.restartScheduledTask();
     await store.refreshAll();
+  });
+
+  mcpDraft?.addEventListener("input", () => {
+    store.setMcpDraft(mcpDraft.value);
+  });
+  root.querySelector<HTMLButtonElement>("#mcp-validate")?.addEventListener("click", async () => {
+    await store.validateMcp();
+  });
+  root.querySelector<HTMLButtonElement>("#mcp-apply")?.addEventListener("click", async () => {
+    await store.applyMcp();
+  });
+
+  root.querySelector<HTMLButtonElement>("#update-refresh")?.addEventListener("click", async () => {
+    await store.refreshAll();
+  });
+  root.querySelector<HTMLButtonElement>("#update-apply")?.addEventListener("click", async () => {
+    await store.applyUpdate();
+  });
+  root.querySelector<HTMLButtonElement>("#update-beta")?.addEventListener("click", async () => {
+    await store.applyUpdate("beta");
+  });
+  root.querySelector<HTMLButtonElement>("#update-rollback")?.addEventListener("click", async () => {
+    await store.rollbackUpdate();
   });
 
   store.subscribe((state) => {
@@ -85,6 +135,23 @@ export function mountDashboard(root: HTMLElement) {
 
     if (logs) {
       logs.textContent = state.logs.length > 0 ? state.logs.join("\n") : "No logs yet.";
+    }
+
+    if (mcpDraft && mcpDraft.value !== state.mcpDraft) {
+      mcpDraft.value = state.mcpDraft;
+    }
+
+    if (mcpResult && state.mcpValidation) {
+      mcpResult.textContent = `${state.mcpValidation.ok ? "OK" : "FAILED"}\n${state.mcpValidation.details}`;
+    }
+
+    if (updateSummary) {
+      const badge = state.update.available ? "update available" : "up to date";
+      updateSummary.textContent = `${state.update.channelLabel} · ${badge} · ${state.update.details}`;
+    }
+
+    if (updateResult && state.updateApply) {
+      updateResult.textContent = JSON.stringify(state.updateApply, null, 2);
     }
 
     if (errorBanner) {

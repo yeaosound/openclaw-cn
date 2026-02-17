@@ -4,16 +4,27 @@ import {
   type DesktopError,
   type GatewaySupervisorStatus,
   type IpcEnvelope,
+  type McpValidationResult,
   type ScheduledTaskStatus,
+  type UpdateApplyResult,
+  type UpdateCheckStatus,
 } from "./channels.js";
-import { parseGatewayLogsTailRequest, parseRequestBase } from "./validate.js";
+import {
+  parseGatewayLogsTailRequest,
+  parseMcpApplyRequest,
+  parseMcpValidateRequest,
+  parseRequestBase,
+  parseUpdateApplyRequest,
+} from "./validate.js";
 import type { GatewaySupervisor } from "../gateway/supervisor.js";
 import { readGatewayLogTail } from "../gateway/log-tail.js";
+import { applyMcpConfigDraft, validateMcpConfigDraft } from "../service/mcp-config.js";
 import {
   getScheduledTaskStatus,
   installScheduledTask,
   restartScheduledTask,
 } from "../service/scheduled-task.js";
+import { applyUpdates, checkUpdates, rollbackLastKnownGood } from "../updates/updater.js";
 
 type RegisterIpcArgs = {
   appRoot: string;
@@ -106,6 +117,41 @@ export function registerIpcHandlers(args: RegisterIpcArgs) {
     await wrap<ScheduledTaskStatus>(async () => {
       parseRequestBase(payload);
       return await restartScheduledTask(args.appRoot);
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.mcpConfigValidate, async (_event, payload: unknown) =>
+    await wrap<McpValidationResult>(async () => {
+      const request = parseMcpValidateRequest(payload);
+      return await validateMcpConfigDraft({ appRoot: args.appRoot, config: request.config });
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.mcpConfigApply, async (_event, payload: unknown) =>
+    await wrap<McpValidationResult>(async () => {
+      const request = parseMcpApplyRequest(payload);
+      return await applyMcpConfigDraft({ appRoot: args.appRoot, config: request.config });
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.updatesCheck, async (_event, payload: unknown) =>
+    await wrap<UpdateCheckStatus>(async () => {
+      parseRequestBase(payload);
+      return await checkUpdates(args.appRoot);
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.updatesApply, async (_event, payload: unknown) =>
+    await wrap<UpdateApplyResult>(async () => {
+      const request = parseUpdateApplyRequest(payload);
+      return await applyUpdates({ appRoot: args.appRoot, channel: request.channel });
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.updatesRollback, async (_event, payload: unknown) =>
+    await wrap<UpdateApplyResult>(async () => {
+      parseRequestBase(payload);
+      return await rollbackLastKnownGood(args.appRoot);
     }),
   );
 }

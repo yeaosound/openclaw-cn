@@ -9,6 +9,29 @@ export type GatewayLogsTailRequest = IpcRequestBase & {
   lines?: number;
 };
 
+export type McpServerConfig = {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+  cwd?: string;
+};
+
+export type McpConfigPayload = {
+  mcpServers: Record<string, McpServerConfig>;
+};
+
+export type McpValidateRequest = IpcRequestBase & {
+  config: McpConfigPayload;
+};
+
+export type McpApplyRequest = IpcRequestBase & {
+  config: McpConfigPayload;
+};
+
+export type UpdateApplyRequest = IpcRequestBase & {
+  channel?: "stable" | "beta" | "dev";
+};
+
 export const IPC_CHANNELS = {
   gatewayStart: "gateway:start",
   gatewayStop: "gateway:stop",
@@ -18,6 +41,11 @@ export const IPC_CHANNELS = {
   serviceScheduledTaskGet: "service:scheduled-task:get",
   serviceScheduledTaskInstall: "service:scheduled-task:install",
   serviceScheduledTaskRestart: "service:scheduled-task:restart",
+  mcpConfigValidate: "mcp:config:validate",
+  mcpConfigApply: "mcp:config:apply",
+  updatesCheck: "updates:check",
+  updatesApply: "updates:apply",
+  updatesRollback: "updates:rollback",
 } as const;
 
 export type IpcChannelName = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS];
@@ -52,4 +80,32 @@ export type ScheduledTaskStatus = {
   state?: string;
   lastRunTime?: string;
   lastRunResult?: string;
+};
+
+export type ValidationIssue = {
+  path: string;
+  message: string;
+};
+
+export type McpValidationResult = {
+  valid: boolean;
+  strict: boolean;
+  activePath: string;
+  backupPath?: string;
+  issues: ValidationIssue[];
+};
+
+export type UpdateCheckStatus = {
+  installKind: string;
+  channelLabel: string;
+  available: boolean;
+  details: string;
+};
+
+export type UpdateApplyResult = {
+  status: "ok" | "error" | "rolled-back";
+  backupId: string;
+  rollbackApplied: boolean;
+  healthAfterUpdate: boolean;
+  message: string;
 };

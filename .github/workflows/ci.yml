@@ -205,6 +205,9 @@ jobs:
           - runtime: node
             task: protocol
             command: pnpm protocol:check
+          - runtime: node
+            task: windows-electron
+            command: pnpm --dir apps/windows-electron check && pnpm --dir apps/windows-electron build && pnpm --dir apps/windows-electron test
     steps:
       - name: Checkout
         uses: actions/checkout@v4

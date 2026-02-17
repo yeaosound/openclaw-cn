@@ -8,7 +8,7 @@ Write-Host "[2/4] Build"
 corepack pnpm build
 
 Write-Host "[3/4] Contract tests"
-node --test "dist/main/ipc/validate.test.js" "dist/main/service/daemon-status.test.js"
+node --test "dist/main/ipc/validate.test.js" "dist/main/service/daemon-status.test.js" "dist/main/mcp/config-manager.test.js"
 
 Write-Host "[4/4] Daemon status probe (no start/stop side effects)"
 Push-Location (Join-Path $PSScriptRoot "../../..")

@@ -1,7 +1,12 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { IPC_SCHEMA_VERSION } from "./channels.js";
-import { parseGatewayLogsTailRequest, parseRequestBase } from "./validate.js";
+import {
+  parseGatewayLogsTailRequest,
+  parseMcpApplyRequest,
+  parseRequestBase,
+  parseUpdateApplyRequest,
+} from "./validate.js";
 
 test("parseRequestBase accepts valid payload", () => {
   const payload = parseRequestBase({
@@ -32,4 +37,40 @@ test("parseGatewayLogsTailRequest clamps line count", () => {
   });
 
   assert.equal(payload.lines, 500);
+});
+
+test("parseMcpApplyRequest validates config payload", () => {
+  const payload = parseMcpApplyRequest({
+    requestId: "req-12345678",
+    schemaVersion: IPC_SCHEMA_VERSION,
+    config: {
+      mcpServers: {
+        local: {
+          command: "node",
+          args: ["server.js"],
+        },
+      },
+    },
+  });
+
+  assert.equal(payload.config.mcpServers.local.command, "node");
+});
+
+test("parseUpdateApplyRequest validates channel enum", () => {
+  const payload = parseUpdateApplyRequest({
+    requestId: "req-12345678",
+    schemaVersion: IPC_SCHEMA_VERSION,
+    channel: "beta",
+  });
+
+  assert.equal(payload.channel, "beta");
+  assert.throws(
+    () =>
+      parseUpdateApplyRequest({
+        requestId: "req-12345678",
+        schemaVersion: IPC_SCHEMA_VERSION,
+        channel: "nightly",
+      }),
+    /stable\|beta\|dev/,
+  );
 });
